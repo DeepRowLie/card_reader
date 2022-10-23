@@ -531,6 +531,7 @@ uint8_t MFRC522_SelectTag(uint8_t *serNum)
   uint8_t buffer[9];
 
   //ClearBitMask(Status2Reg, 0x08);			//MFCrypto1On=0
+  Write_MFRC522(BitFramingReg, 0x00);
 
   buffer[0] = PICC_SElECTTAG;
   buffer[1] = 0x70;

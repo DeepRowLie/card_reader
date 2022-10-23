@@ -48,6 +48,7 @@ extern hook_func g_cb_level_traverse;
 
 void level_traverse(node root);
 void leaf_traverse(node root);
+uint8_t tree_creater(node *root, uint16_t element_size);
 void tree_destructor(node root);
 
 #endif /*__BINARY_TREE_H*/

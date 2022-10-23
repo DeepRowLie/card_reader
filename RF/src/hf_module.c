@@ -1,5 +1,6 @@
 #include "hf_module.h"
 #include "MFRC522.h"
+#include "usbd_cdc_if.h"
 
 #define MAX_FRM_LEN_ANTICOL   7
 #define CT_FLAG             0x88
@@ -17,7 +18,7 @@ static uint8_t BCC_check(uint8_t *, uint8_t);
 
 uint8_t anti_collision_loop(node root, uint8_t cascade)
 {   
-    if (NODE_VALIDATE(root))
+    if (HF_NODE_VALIDATE(root))
     {
         card_hf_uid *value         = root->value;
         uint8_t     *ptr_UID       = value->UID + (cascade - 1) * LEN_EACH_CASCADE;
@@ -61,7 +62,9 @@ uint8_t anti_collision_loop(node root, uint8_t cascade)
             {
                 // achieve one complete UID, send HLTA and REQA
                 MFRC522_Halt();                         // HLTA : change all PICC to IDLE
-                MFRC522_Request(PICC_REQIDL, NULL);     // REQA : change all IDLE PICC to READY
+                MFRC522_Request(PICC_REQALL, NULL);     // REQA : change all IDLE PICC to READY
+                
+                status = MI_TAGFOUND;
             }
         }
         else if (status & MI_COL)
@@ -83,26 +86,69 @@ uint8_t anti_collision_loop(node root, uint8_t cascade)
         
             if (node_splitting_up(root))
             {
+                value->valid_len = 0;
+                
                 return MI_ERR;
             }
         
-            status = anti_collision_loop(root->l_child, cascade);
-            status = anti_collision_loop(root->r_child, cascade);
+            status  = anti_collision_loop(root->l_child, cascade);
+            status |= anti_collision_loop(root->r_child, cascade);
         }
  
         return status;
     }
     else
     {
-        return MI_OK;
+        return MI_ERR;
     }    
 }
 
-void cb_hf_module_level_traverse(node root)
+void cb_hf_module_node_print(node root)
 {
-    if (NODE_VALIDATE(root))
+    if (HF_NODE_VALIDATE(root))
     {
-        NODE_PRINT(root);
+        HF_NODE_PRINT(root);
+    }
+}
+
+void cb_hf_module_multiRead(node root)
+{
+    card_hf_uid *value  = root->value;
+    
+    if (HF_NODE_VALIDATE(root) && value->valid_len)
+    {
+        // HF_NODE_PRINT(root);
+        if (MFRC522_SelectTag(value->UID) > 0)
+        {
+            uint8_t block  = BLOCK_ID;
+        
+            if (MI_OK == MFRC522_Auth(PICC_AUTHENT1A, block, KEY_A_DEFAULT, value->UID))
+            {
+                uint8_t usb_txpayload_buf[BLOCK_LEN + 2] = {0};
+                if (MI_OK == MFRC522_Read(block, usb_txpayload_buf))
+                {
+                    msg_data           tmp_payload  = {0};
+                    custom_usb_message tmp_msg      = {0};
+                    uint8_t            tx_pack_len  = 0;
+                
+                    tmp_payload.pdata    = usb_txpayload_buf;
+                    tmp_payload.data_len = BLOCK_LEN;
+                
+                    CUSTOM_USB_MESSAGE_CONSTRUCTOR(tmp_msg, g_usb_message, tmp_payload);
+                    tmp_msg.check = checksum(&tmp_msg);
+                
+                    tx_pack_len = assemble_packet(&tmp_msg, g_usb_tx_buf);
+                    CDC_Transmit_FS(g_usb_tx_buf, tx_pack_len);
+                }
+                
+                MFRC522_Halt();                   // encypted HLTA : change the authenticated PICC to IDLE
+                MFRC522_StopCrypto1();
+            }
+        
+            // select one card, send HLTA and REQA
+            MFRC522_Halt();                        // HLTA : change all READY PICC to IDLE, the selected PICC to HLT
+            MFRC522_Request(PICC_REQALL, NULL);    // REQUEST ALL <=> WUPA
+        }
     }
 }
 

@@ -410,27 +410,24 @@ int cli_parse_cmd(uint8_t *command, uint16_t cmd_len)
         //printf("\r\n write register \r\n");
     }
     else if (!strcmp(words[0], ANTI_COL_COMMAND))
-    {
-        uint8_t d_ATQA[2] = {0};
-        
-        MALLOC_CHECK(g_card_tbl, sizeof(struct binary_tree), 1);
-        MALLOC_CHECK(g_card_tbl->value, sizeof(card_hf_uid), 1);
-        if (MI_OK == MFRC522_Request(PICC_REQIDL, d_ATQA))
+    {   
+        // MALLOC_CHECK(g_card_tbl, sizeof(struct binary_tree), 1);
+        // MALLOC_CHECK(g_card_tbl->value, sizeof(card_hf_uid), 1);
+        if (MI_OK == MFRC522_Request(PICC_REQIDL, NULL))
         {
-            if (MI_OK == anti_collision_loop(g_card_tbl, 1))
-            {
-                printf("\r\nanti_collision_loop succeed!");    
-            }
+            uint8_t status = tree_creater(&g_card_tbl, sizeof(card_hf_uid));
             
-            g_cb_level_traverse = cb_hf_module_level_traverse;
-            level_traverse(g_card_tbl);
+            if (MI_TAGFOUND & anti_collision_loop(g_card_tbl, 1))
+            {
+                printf("\r\nanti_collision_loop succeed!");
+                HF_TRAVERSE_CALLBACK(level, g_card_tbl, cb_hf_module_node_print);
+            }
+            tree_destructor(g_card_tbl);
         }
         else
         {
             printf("\r\n[WARINING]find no card\r\n");
         }
-        
-        tree_destructor(g_card_tbl);
     }
     else if (!strcmp(words[0], READ_COMMAND))
     {

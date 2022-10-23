@@ -149,57 +149,25 @@ static uint8_t action_read(msg_data *in_data, msg_data *out_data)
     if (g_hf_sm.currentState != &g_hf_offline)
     { 
         uint8_t status = MI_ERR;
-        uint8_t *uid   = g_hf_uid.UID;
-        uint8_t block  = BLOCK_ID;
         
-        if (g_hf_sm.currentState != &g_hf_auth)
+        status = MFRC522_Request(PICC_REQALL, NULL);      
+        if (status == MI_OK)
         {
-            uint8_t d_ATQA[2] = {0};
-            
-            status = MFRC522_Request(PICC_REQIDL, d_ATQA);
-            
+            status = tree_creater(&g_card_tbl, sizeof(card_hf_uid));
             if (status == MI_OK)
             {
-                stateM_handleEvent(&g_hf_sm, &(struct event){EVT_REQA, NULL});
-                status = MFRC522_Anticoll(uid);
-                
-                if (status == MI_OK)
+                status = anti_collision_loop(g_card_tbl, 1);
+                if (status & MI_TAGFOUND)
                 {
-                    status = MFRC522_SelectTag(uid);
-                    if (status > 0)
-                    {
-                        stateM_handleEvent(&g_hf_sm, &(struct event){EVT_SELECT, NULL});
-                        status = MFRC522_Auth(PICC_AUTHENT1A, block, KEY_A_DEFAULT, uid);
-                        if (status == MI_OK)
-                        {
-                            stateM_handleEvent(&g_hf_sm, &(struct event){EVT_AUTH, NULL});
-                            status = MFRC522_Read(block, sg_usb_txpayload_buf);
-                        }
-                    }
+                    HF_TRAVERSE_CALLBACK(leaf, g_card_tbl, cb_hf_module_multiRead);
                 }
             }
         }
-        else
-        {
-            status = MFRC522_Read(block, sg_usb_txpayload_buf);
-        }
-        
-        if (status != MI_ERR)
-        {
-            
-            out_data->data_len = BLOCK_LEN;
-        }
-        else
-        {
-            stateM_handleEvent(&g_hf_sm, &(struct event){EVT_ERR, NULL});
-            sg_usb_txpayload_buf[0] = CMD_FAIL;
-            out_data->data_len = 1;
-        }
-        
-        out_data->pdata = sg_usb_txpayload_buf;
-        return ACK;
     }
-        
+    
+    out_data->pdata = NULL;
+    out_data->data_len = 0;
+    
     return NACK;
 }
 

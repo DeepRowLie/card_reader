@@ -51,6 +51,19 @@ void leaf_traverse(node root)
     }
 }
 
+uint8_t tree_creater(node *root, uint16_t element_size)
+{
+    if (*root)
+    {
+        tree_destructor(*root);
+    }
+    
+    MALLOC_CHECK(*root, sizeof(struct binary_tree), 1);
+    MALLOC_CHECK((*root)->value, element_size, 1);
+    
+    return MEM_OK;
+}
+
 void tree_destructor(node root)
 {
     if (root != NULL)
@@ -61,8 +74,10 @@ void tree_destructor(node root)
         if (root->value != NULL)
         {
             MEM_FREE(root->value);
+            root->value = NULL;
         }
         
         MEM_FREE(root);
+        root = NULL;
     }
 }

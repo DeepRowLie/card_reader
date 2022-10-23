@@ -10,9 +10,9 @@
 #define BLOCK_LEN   0x10
 #define KEY_LEN     6
 
-#define NODE_VALIDATE(node) (((node) != NULL) && ((node)->value !=NULL))
+#define HF_NODE_VALIDATE(node) (((node) != NULL) && ((node)->value !=NULL))
 
-#define NODE_PRINT(node) \
+#define HF_NODE_PRINT(node) \
         do\
         {\
             card_hf_uid *p_uid = (node)->value;\
@@ -27,6 +27,14 @@
             }\
         }while(0)
 
+#define HF_TRAVERSE_CALLBACK(method, node, call_back) \
+        do\
+        {\
+            g_cb_##method##_traverse = (call_back);\
+            method##_traverse((node));\
+            g_cb_##method##_traverse = NULL;\
+        }while(0)
+        
 typedef struct
 {
     uint8_t UID[UID_LEN_MAX];
@@ -41,6 +49,7 @@ extern uint8_t KEY_A_DEFAULT[KEY_LEN];
 extern uint8_t KEY_B_DEFAULT[KEY_LEN];
 
 uint8_t anti_collision_loop(node root, uint8_t cascade);
-void cb_hf_module_level_traverse(node root);
+void cb_hf_module_node_print(node root);
+void cb_hf_module_multiRead(node root);
 
 #endif /*__HF_MODULE_H*/
