@@ -1,4 +1,5 @@
 #include "libcli.h"
+#include "hf_module.h"
 #include "thm3070_drv.h"
 #include "MFRC522.h"
 
@@ -279,9 +280,10 @@ int cli_parse_data(cli_def *cli, uint8_t *buf, uint16_t data_len)
 */
 
 // simple cli,just meet the requirements
-#define TEST_COMMAND "test"
-#define WRITE_COMMAND "write"
-#define READ_COMMAND "read"
+#define TEST_COMMAND       "test"
+#define WRITE_COMMAND      "write"
+#define READ_COMMAND       "read"
+#define ANTI_COL_COMMAND   "anticol"
 #define CMD_MAX_WORDS_NUM 3
 
 static void cli_trim(uint8_t *string)
@@ -357,6 +359,7 @@ int cli_parse_cmd(uint8_t *command, uint16_t cmd_len)
                 status = MFRC522_SelectTag(cardstr);
                 if (status > 0)
                 {
+                    /**
                     uint8_t test_keyA[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
                     printf("select successfully\r\n");
                     status = MFRC522_Auth(PICC_AUTHENT1A, 4, test_keyA, cardstr);
@@ -387,6 +390,7 @@ int cli_parse_cmd(uint8_t *command, uint16_t cmd_len)
                     {
                         printf("[ERR]:auth failed!\r\n");
                     }
+                    **/
                 }
                 else
                 {
@@ -395,9 +399,38 @@ int cli_parse_cmd(uint8_t *command, uint16_t cmd_len)
                     
             }
             else
-                printf("\r\nfind no card\r\n");
+            {
+                printf("\r\n[ERR]something wrong with anti-collision\r\n");
+            }
+        }
+        else
+        {
+            printf("\r\n[WARINING]find no card\r\n");
         }
         //printf("\r\n write register \r\n");
+    }
+    else if (!strcmp(words[0], ANTI_COL_COMMAND))
+    {
+        uint8_t d_ATQA[2] = {0};
+        
+        MALLOC_CHECK(g_card_tbl, sizeof(struct binary_tree), 1);
+        MALLOC_CHECK(g_card_tbl->value, sizeof(card_hf_uid), 1);
+        if (MI_OK == MFRC522_Request(PICC_REQIDL, d_ATQA))
+        {
+            if (MI_OK == anti_collision_loop(g_card_tbl, 1))
+            {
+                printf("\r\nanti_collision_loop succeed!");    
+            }
+            
+            g_cb_level_traverse = cb_hf_module_level_traverse;
+            level_traverse(g_card_tbl);
+        }
+        else
+        {
+            printf("\r\n[WARINING]find no card\r\n");
+        }
+        
+        tree_destructor(g_card_tbl);
     }
     else if (!strcmp(words[0], READ_COMMAND))
     {
@@ -407,6 +440,13 @@ int cli_parse_cmd(uint8_t *command, uint16_t cmd_len)
         uint8_t ret = Read_MFRC522(reg);
         //uint8_t ret = thm3070_read_reg(reg);
         printf("\r\n$MCU > reg:0x%X,data:0x%X\r\n", reg, ret);
+    }
+    else if (!strcmp(words[0], WRITE_COMMAND))
+    {
+        uint8_t reg  = strtol(words[1], NULL, 16);
+        uint8_t data = strtol(words[2], NULL, 16);
+        Write_MFRC522(reg, data);
+        printf("\r\n$MCU > write reg:0x%X successfully\r\n", reg);
     }
     
     printf("\r\n");

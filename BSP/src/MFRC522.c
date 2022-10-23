@@ -182,15 +182,20 @@ uint8_t MFRC522_Request(uint8_t reqMode, uint8_t *TagType)
 {
   uint8_t status;
   uint16_t backBits; // The received data bits
+  uint8_t d_ATQA[2] = {0};
 
   MFRC522_StopCrypto1();
   Write_MFRC522(BitFramingReg, 0x07);   // TxLastBists = BitFramingReg[2..0]
 
-  TagType[0] = reqMode;
+  d_ATQA[0] = reqMode;
 
-  status = MFRC522_ToCard(PCD_TRANSCEIVE, TagType, 1, TagType, &backBits);
+  status = MFRC522_ToCard(PCD_TRANSCEIVE, d_ATQA, 1, d_ATQA, &backBits);
   if ((status != MI_OK) || (backBits != 0x10)) {
     status = MI_ERR;
+  }
+  else if (TagType != NULL)
+  {
+      memcpy(TagType, d_ATQA, 2);
   }
 
   return status;
@@ -268,12 +273,17 @@ uint8_t MFRC522_ToCard(uint8_t command, uint8_t *sendData, uint8_t sendLen, uint
 
   if (i != 0)
   {
-    if(!(Read_MFRC522(ErrorReg) & 0x1B))  // BufferOvfl Collerr CRCErr ProtecolErr
+    uint8_t error_reg = Read_MFRC522(ErrorReg);
+    if(!(error_reg & (BufferOvfl | CRCErr | ParityErr | ProtocolErr)))  // BufferOvfl CRCErr ProtecolErr
     {
       status = MI_OK;
       if (n & irqEn & 0x01)
       {
-        status = MI_NOTAGERR;             // ??
+        status |= MI_NOTAGERR;             // ??
+      }
+      if (error_reg & CollErr)
+      {
+         status |=  MI_COL;
       }
 
       if (command == PCD_TRANSCEIVE)
@@ -306,8 +316,8 @@ uint8_t MFRC522_ToCard(uint8_t command, uint8_t *sendData, uint8_t sendLen, uint
       }
     }
     else {
-      //printf("~~~ buffer overflow, collerr, crcerr, or protecolerr\r\n");
-      status = MI_ERR;
+      //printf("~~~ buffer overflow, crcerr, or protecolerr\r\n");
+      status |= MI_ERR;
     }
   }
   else {

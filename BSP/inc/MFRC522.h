@@ -37,7 +37,19 @@
 #define MI_OK                 0
 #define MI_NOTAGERR           1
 #define MI_ERR                2
+#define MI_COL                4
 
+// MFRC522 ErrorReg register bitmask
+#define WrErr            0x80
+#define TempErr          0x40
+#define BufferOvfl       0x10
+#define CollErr          0x08
+#define CRCErr           0x04
+#define ParityErr        0x02
+#define ProtocolErr      0x01
+
+// MFRC522 CollReg register bitmask
+#define CollPos_MSK      0x1f
 
 //------------------MFRC522 Register---------------
 //Page 0:Command and Status
