@@ -72,7 +72,7 @@ uint8_t anti_collision_loop(node root, uint8_t cascade)
             uint8_t dummy_bits  = 0;
             uint8_t dummy_bytes = 0;
                 
-            unLen       = (Read_MFRC522(CollReg) & CollPos_MSK) - 1;
+            unLen       = (Read_MFRC522(CollReg) & CollPos_MSK) - 1 - TxLastBits;
             dummy_bits  = TxLastBits + unLen;
             dummy_bytes = (dummy_bits >> 3) + (dummy_bits % 8 ? 1 : 0);
             *((uint32_t *)anti_col_frm) &= (1 << dummy_bits) - 1;

@@ -35,9 +35,9 @@
 
 //And MF522 The error code is returned when communication
 #define MI_OK                 0
-#define MI_NOTAGERR           0x01
-#define MI_ERR                0x02
-#define MI_COL                0x04
+#define MI_COL                0x01
+#define MI_NOTAGERR           0x02
+#define MI_ERR                0x04
 #define MI_WARN               0x08
 #define MI_RXTIMOUT           0x10
 #define MI_TAGFOUND           0x20

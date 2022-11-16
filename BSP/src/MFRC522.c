@@ -274,7 +274,7 @@ uint8_t MFRC522_ToCard(uint8_t command, uint8_t *sendData, uint8_t sendLen, uint
   if (i != 0)
   {
     uint8_t error_reg = Read_MFRC522(ErrorReg);
-    if(!(error_reg & (BufferOvfl | CRCErr | ParityErr | ProtocolErr)))  // BufferOvfl CRCErr ProtecolErr
+    if(!(error_reg & (BufferOvfl | CRCErr | ProtocolErr)))  // BufferOvfl CRCErr ProtecolErr
     {
       status = MI_OK;
       if (n & irqEn & 0x01)
@@ -285,39 +285,44 @@ uint8_t MFRC522_ToCard(uint8_t command, uint8_t *sendData, uint8_t sendLen, uint
       {
          status |=  MI_COL;
       }
-
-      if (command == PCD_TRANSCEIVE)
+      else if (error_reg & ParityErr)
       {
-        n = Read_MFRC522(FIFOLevelReg);
-        lastBits = Read_MFRC522(ControlReg) & 0x07;
-        if (lastBits)
-        {
-          *backLen = (n-1)*8 + lastBits;
-        }
-        else
-        {
-          *backLen = n*8;
-        }
-
-        if (n == 0)
-        {
-          n = 1;
-        }
-        if (n > MAX_LEN)
-        {
-          n = MAX_LEN;
-        }
-
-        // Reading the received data in FIFO
-        for (i=0; i<n; i++)
-        {
-          backData[i] = Read_MFRC522(FIFODataReg);
-        }
+         status = MI_ERR;
       }
     }
-    else {
+    else 
+    {
       //printf("~~~ buffer overflow, crcerr, or protecolerr\r\n");
-      status |= MI_ERR;
+      status = MI_ERR;
+    }
+
+    if ((command == PCD_TRANSCEIVE) && (status <= MI_COL))
+    {
+      n = Read_MFRC522(FIFOLevelReg);
+      lastBits = Read_MFRC522(ControlReg) & 0x07;
+      if (lastBits)
+      {
+        *backLen = (n-1)*8 + lastBits;
+      }
+      else
+      {
+        *backLen = n*8;
+      }
+
+      if (n == 0)
+      {
+        n = 1;
+      }
+      if (n > MAX_LEN)
+      {
+        n = MAX_LEN;
+      }
+
+      // Reading the received data in FIFO
+      for (i=0; i<n; i++)
+      {
+        backData[i] = Read_MFRC522(FIFODataReg);
+      }
     }
   }
   else {
